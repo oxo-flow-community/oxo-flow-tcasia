@@ -1,0 +1,245 @@
+# workflows/02_as_calling/Snakefile — four-caller alternative-splicing
+# quantification: rMATS, MAJIQ, SUPPA2, SplAdder. Rules keep upstream names
+# and command logic verbatim; the four rules/snakefile_* fragments are folded
+# in here in upstream order (majiq, rmats, suppa2, spladder).
+
+[workflow]
+name = "tcasia-as-calling"
+version = "1.0.0"
+description = "Per-sample alternative-splicing analysis with rMATS, MAJIQ, SUPPA2 and SplAdder (TCASIA stage 2)."
+author = "oxo-flow-community"
+
+# --- SUPPA2 (rules/snakefile_suppa2) ---
+
+[[rules]]
+name = "salmon_quant"
+description = "Quantify transcripts with Salmon"
+input = [
+    "{config.reads_dir}/{sample}_1.fastq.gz",
+    "{config.reads_dir}/{sample}_2.fastq.gz",
+]
+output = ["{config.as_out_dir}/work/suppa2/{sample}/quant.sf"]
+log = "{config.as_out_dir}/logs/suppa2/{sample}.salmon.log"
+shell = """
+mkdir -p "$(dirname {config.as_out_dir}/logs/suppa2/{sample}.salmon.log)"
+salmon quant -i {config.salmon_index} -l {config.salmon_library_type} \
+    --gcBias --validateMappings \
+    -1 {input[0]} -2 {input[1]} \
+    -p {threads} -o {config.as_out_dir}/work/suppa2/{sample} > {config.as_out_dir}/logs/suppa2/{sample}.salmon.log 2>&1
+"""
+
+[rules.resources]
+threads = 8
+
+[rules.environment]
+conda = "envs/SUPPA2.yaml"
+
+[[rules]]
+name = "select_suppa_fields"
+description = "Extract isoform TPM column from the Salmon quant file"
+input = ["{config.as_out_dir}/work/suppa2/{sample}/quant.sf"]
+output = ["{config.as_out_dir}/work/suppa2/{sample}/iso_tpm.txt"]
+log = "{config.as_out_dir}/logs/suppa2/{sample}.select_fields.log"
+shell = "multipleFieldSelection.py -i {input[0]} -k 1 -f 4 -o {output[0]} > {config.as_out_dir}/logs/suppa2/{sample}.select_fields.log 2>&1"
+
+[rules.environment]
+conda = "envs/SUPPA2.yaml"
+
+[[rules]]
+name = "format_suppa_fields"
+description = "Strip the |transcript_id| prefix from SUPPA2 TPM rows"
+input = ["{config.as_out_dir}/work/suppa2/{sample}/iso_tpm.txt"]
+output = ["{config.as_out_dir}/work/suppa2/{sample}/iso_tpm_formatted.txt"]
+log = "{config.as_out_dir}/logs/suppa2/{sample}.format_fields.log"
+shell = """perl -alne '{(/\\|.*\\|\\t/; s/$1//g; s/\\|//g; print)}' {input[0]} > {output[0]} 2> {config.as_out_dir}/logs/suppa2/{sample}.format_fields.log"""
+
+[rules.environment]
+conda = "envs/SUPPA2.yaml"
+
+[[rules]]
+name = "suppa_run"
+description = "Compute per-event PSI with SUPPA2"
+input = ["{config.as_out_dir}/work/suppa2/{sample}/iso_tpm_formatted.txt"]
+output = ["{config.as_out_dir}/{sample}/suppa2/{sample}_event.psi"]
+log = "{config.as_out_dir}/logs/suppa2/{sample}.psi.log"
+shell = """
+mkdir -p "$(dirname {output[0]})" "$(dirname {config.as_out_dir}/logs/suppa2/{sample}.psi.log)"
+suppa.py psiPerEvent -i {config.suppa2_events} -f {config.suppa2_min_tpm} \
+    -e {input[0]} -o {config.as_out_dir}/{sample}/suppa2/{sample}_event > {config.as_out_dir}/logs/suppa2/{sample}.psi.log 2>&1
+"""
+
+[rules.environment]
+conda = "envs/SUPPA2.yaml"
+
+# --- rMATS (rules/snakefile_rmats) ---
+
+[[rules]]
+name = "rmats_create_input"
+description = "Write the single-BAM input list for rMATS"
+input = ["{config.aligned_dir}/{sample}/{sample}_Aligned.sortedByCoord.out.bam"]
+output = ["{config.as_out_dir}/work/rmats/{sample}.txt"]
+log = "{config.as_out_dir}/logs/rmats/{sample}.input.log"
+shell = """
+mkdir -p "$(dirname {output[0]})" "$(dirname {config.as_out_dir}/logs/rmats/{sample}.input.log)"
+printf '%s\\n' {input[0]} > {output[0]} 2> {config.as_out_dir}/logs/rmats/{sample}.input.log
+"""
+
+[rules.environment]
+conda = "envs/rmats.yaml"
+
+[[rules]]
+name = "rmats_run"
+description = "Run rMATS per sample with statistics disabled (PSI values)"
+input = ["{config.as_out_dir}/work/rmats/{sample}.txt"]
+output = ["{config.as_out_dir}/{sample}/rmats"]
+log = "{config.as_out_dir}/logs/rmats/{sample}.log"
+shell = """
+mkdir -p {config.as_out_dir}/work/rmats/{sample}.tmp "$(dirname {config.as_out_dir}/logs/rmats/{sample}.log)"
+rmats.py \
+    --b1 {input[0]} \
+    --gtf {config.ref} \
+    --readLength {config.read_len} \
+    --nthread {threads} \
+    --od {output[0]} \
+    --tmp {config.as_out_dir}/work/rmats/{sample}.tmp \
+    --libType {config.strandness} \
+    --cstat {config.rmats_cstat} \
+    --statoff \
+    --variable-read-length \
+    -t paired {config.rmats_extra} \
+    > {config.as_out_dir}/logs/rmats/{sample}.log 2>&1
+"""
+
+[rules.resources]
+threads = 10
+
+[rules.environment]
+conda = "envs/rmats.yaml"
+
+# --- MAJIQ (rules/snakefile_majiq) ---
+
+[[rules]]
+name = "majiq_create_ini"
+description = "Write the MAJIQ build configuration file"
+input = ["{config.aligned_dir}/{sample}/{sample}_Aligned.sortedByCoord.out.bam"]
+output = ["{config.as_out_dir}/work/majiq/{sample}/build.ini"]
+log = "{config.as_out_dir}/logs/majiq/{sample}.config.log"
+shell = """
+mkdir -p "$(dirname {output[0]})" "$(dirname {config.as_out_dir}/logs/majiq/{sample}.config.log)"
+printf '[info]\\nreadlen=%s\\nbamdirs=%s\\ngenome=%s\\nstrandness=%s\\n[experiments]\\n%s=%s\\n' \
+    {config.read_len} {config.aligned_dir}/{sample} {config.majiq_genome} \
+    {config.majiq_strandness} {sample} {sample}_Aligned.sortedByCoord.out \
+    > {output[0]} 2> {config.as_out_dir}/logs/majiq/{sample}.config.log
+"""
+
+[rules.environment]
+conda = "envs/MAJIQ.yaml"
+
+[[rules]]
+name = "majiq_build"
+description = "Build the MAJIQ splice graph"
+input = ["{config.as_out_dir}/work/majiq/{sample}/build.ini"]
+output = [
+    "{config.as_out_dir}/{sample}/majiq/{sample}_Aligned.sortedByCoord.out.majiq",
+    "{config.as_out_dir}/{sample}/majiq/{sample}_Aligned.sortedByCoord.out.sj",
+    "{config.as_out_dir}/{sample}/majiq/splicegraph.sql",
+]
+log = "{config.as_out_dir}/logs/majiq/{sample}.build.log"
+shell = """
+mkdir -p {config.as_out_dir}/{sample}/majiq "$(dirname {config.as_out_dir}/logs/majiq/{sample}.build.log)"
+majiq --license {config.majiq_license} build {config.gff} \
+    -c {input[0]} -j {threads} -o {config.as_out_dir}/{sample}/majiq \
+    --minreads {config.majiq_minreads} > {config.as_out_dir}/logs/majiq/{sample}.build.log 2>&1
+"""
+
+[rules.resources]
+threads = 8
+
+[rules.environment]
+conda = "envs/MAJIQ.yaml"
+
+[[rules]]
+name = "majiq_psi"
+description = "Quantify MAJIQ PSI per local splicing variation"
+input = ["{config.as_out_dir}/{sample}/majiq/{sample}_Aligned.sortedByCoord.out.majiq"]
+output = [
+    "{config.as_out_dir}/{sample}/majiq/{sample}.psi.tsv",
+    "{config.as_out_dir}/{sample}/majiq/{sample}.psi.voila",
+]
+log = "{config.as_out_dir}/logs/majiq/{sample}.psi.log"
+shell = """
+majiq --license {config.majiq_license} psi {input[0]} \
+    -n {sample} -j {threads} -o {config.as_out_dir}/{sample}/majiq > {config.as_out_dir}/logs/majiq/{sample}.psi.log 2>&1
+"""
+
+[rules.resources]
+threads = 8
+
+[rules.environment]
+conda = "envs/MAJIQ.yaml"
+
+[[rules]]
+name = "voila_modulize"
+description = "Convert the MAJIQ splice graph to Voila modules"
+input = [
+    "{config.as_out_dir}/{sample}/majiq/splicegraph.sql",
+    "{config.as_out_dir}/{sample}/majiq/{sample}.psi.voila",
+]
+output = ["{config.as_out_dir}/{sample}/majiq/modulized"]
+log = "{config.as_out_dir}/logs/majiq/{sample}.modulize.log"
+shell = """
+voila --license {config.majiq_license} modulize -d {output[0]} \
+    {input[0]} {input[1]} -j {threads} > {config.as_out_dir}/logs/majiq/{sample}.modulize.log 2>&1
+"""
+
+[rules.resources]
+threads = 4
+
+[rules.environment]
+conda = "envs/MAJIQ.yaml"
+
+[[rules]]
+name = "voila_tsv"
+description = "Export MAJIQ results as a TSV table"
+input = [
+    "{config.as_out_dir}/{sample}/majiq/splicegraph.sql",
+    "{config.as_out_dir}/{sample}/majiq/{sample}.psi.voila",
+]
+output = ["{config.as_out_dir}/{sample}/majiq/{sample}.voila.tsv"]
+log = "{config.as_out_dir}/logs/majiq/{sample}.tsv.log"
+shell = """
+voila --license {config.majiq_license} tsv -f {output[0]} \
+    {input[0]} {input[1]} -j {threads} > {config.as_out_dir}/logs/majiq/{sample}.tsv.log 2>&1
+"""
+
+[rules.resources]
+threads = 4
+
+[rules.environment]
+conda = "envs/MAJIQ.yaml"
+
+# --- SplAdder (rules/snakefile_spladder) ---
+
+[[rules]]
+name = "spladder_run"
+description = "Run SplAdder alternative-splicing event detection"
+input = ["{config.aligned_dir}/{sample}/{sample}_Aligned.sortedByCoord.out.bam"]
+output = ["{config.as_out_dir}/{sample}/spladder"]
+log = "{config.as_out_dir}/logs/spladder/{sample}.log"
+shell = """
+mkdir -p {output[0]} "$(dirname {config.as_out_dir}/logs/spladder/{sample}.log)"
+spladder build \
+    --bams {input[0]} \
+    --annotation {config.ref} \
+    --outdir {output[0]} \
+    --parallel {threads} \
+    --merge-strat {config.spladder_merge_strategy} \
+    --event-types {config.spladder_event_types} \
+    --confidence {config.spladder_confidence} -v > {config.as_out_dir}/logs/spladder/{sample}.log 2>&1
+"""
+
+[rules.resources]
+threads = 8
+
+[rules.environment]
+conda = "envs/spladder.yaml"

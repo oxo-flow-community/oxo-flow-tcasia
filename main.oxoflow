@@ -1,0 +1,86 @@
+# TCASIA (OncoHarmony-Network/TCASIA_pipeline @ 06564ff1) — oxo-flow port
+#
+# Default-parameters main execution path. The two upstream Snakemake
+# workflows are chained in one DAG (alignment bams feed the AS callers):
+#
+#   FASTQ -> fastp -> STAR -> samtools sort/index -> featureCounts
+#         -> rMATS | MAJIQ | SUPPA2 (Salmon) | SplAdder
+#
+# Structure mirrors upstream:
+#   modules/alignment.oxoflow  = workflows/01_alignment/Snakefile
+#   modules/as_calling.oxoflow = workflows/02_as_calling/Snakefile
+#   (+ rules/snakefile_* fragments folded in, same rule names)
+#
+# Run one stage only with -t: `oxo-flow run main.oxoflow -t alignment`
+# (rule names are namespaced alignment::* / as_calling::*).
+#
+# Scope deviations from upstream (see README fidelity table):
+#   - the samples TSV (sample_id/fastq_1/fastq_2) is replaced by
+#     [[sample_groups]] + the reads_dir layout below (fastq paths must be
+#     reads_dir/{sample}_1.fastq.gz / {sample}_2.fastq.gz)
+#   - 01 output_dir/aligned and 02 bam_dir are one key (aligned_dir), so
+#     the alignment -> AS-calling chain is structural
+#   - strandness-derived values (salmon library type, MAJIQ strandness)
+#     are explicit config keys — upstream computes them in tcasia_config.py
+
+[workflow]
+name = "tcasia"
+version = "1.0.0"
+description = "Paired-end RNA-seq alignment and four-caller alternative-splicing analysis (rMATS, MAJIQ, SUPPA2, SplAdder). oxo-flow port of OncoHarmony-Network/TCASIA_pipeline @ 06564ff1."
+author = "oxo-flow-community"
+
+[config]
+# --- shared ---
+strandness = "fr-firststrand"   # fr-firststrand | fr-secondstrand | fr-unstranded
+
+# --- 01_alignment (upstream config.yml) ---
+align_out_dir = "/path/to/output/alignment"        # upstream: output_dir
+aligned_dir = "/path/to/output/alignment/aligned"  # upstream: 01 output_dir/aligned == 02 bam_dir
+star_index_dir = "/path/to/references/STAR_index"  # GRCh38 STAR index built with STAR 2.7.7a + GENCODE v34
+ref = "/path/to/references/gencode.v34.annotation.gtf"   # featureCounts / rMATS / SplAdder annotation
+reads_dir = "test/fixtures/raw"   # point at your own fastq directory for real runs
+
+# fastp (upstream fastp.*)
+fastp_min_length = 36
+fastp_qualified_quality_phred = 20
+fastp_unqualified_percent_limit = 40
+fastp_n_base_limit = 5
+
+# STAR (upstream star.*)
+star_out_filter_mismatch_nmax = 15
+star_limit_bam_sort_ram = 39050942993
+
+# --- 02_as_calling (upstream config.yml) ---
+as_out_dir = "/path/to/output/as_calling"          # upstream: output_dir
+gff = "/path/to/references/gencode.v34.annotation.gff3"   # upstream: GFF
+majiq_license = "/path/to/majiq_license_academic_official.lic"
+suppa2_events = "/path/to/references/gencode.v34.events.ioe"
+salmon_index = "/path/to/references/gencode.v34.transcripts.salmon.index"
+read_len = 150
+
+# Derived from `strandness` by upstream tcasia_config.py; kept explicit here:
+salmon_library_type = "ISR"      # fr-firststrand -> ISR | fr-secondstrand -> ISF | fr-unstranded -> IU
+majiq_strandness = "reverse"     # fr-firststrand -> reverse | fr-secondstrand -> forward | fr-unstranded -> none
+# rMATS library type IS the strandness value (upstream: RMATS_LIBRARY_TYPE = STRANDNESS)
+
+rmats_cstat = 0.0001
+rmats_extra = ""
+majiq_genome = "hg38"
+majiq_minreads = 10
+suppa2_min_tpm = 1
+spladder_confidence = 3
+spladder_merge_strategy = "single"
+spladder_event_types = "exon_skip,intron_retention,alt_3prime,alt_5prime,mutex_exons"
+
+# Upstream samples.tsv declares sample_01; add more samples here for real runs.
+[[sample_groups]]
+name = "cohort"
+samples = ["sample_01"]
+
+[[include]]
+path = "modules/alignment.oxoflow"
+namespace = "alignment"
+
+[[include]]
+path = "modules/as_calling.oxoflow"
+namespace = "as_calling"

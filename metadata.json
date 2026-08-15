@@ -1,0 +1,41 @@
+{
+  "name": "oxo-flow-tcasia",
+  "title": "Paired-end RNA-seq alignment and four-caller alternative-splicing analysis",
+  "origin": "port",
+  "rating": "verified",
+  "engine": "snakemake",
+  "source": {
+    "repo": "OncoHarmony-Network/TCASIA_pipeline",
+    "url": "https://github.com/OncoHarmony-Network/TCASIA_pipeline",
+    "tag": "main@06564ff1",
+    "sha": "06564ff19e7f5d952f5d98175ee6b5d86c08ec49",
+    "license": "MIT"
+  },
+  "created": "2026-08-15",
+  "domain": "transcriptomics",
+  "tags": ["alternative-splicing", "rna-seq", "rmats", "majiq", "suppa2", "spladder", "star", "snakemake"],
+  "scope": [
+    "fastp_qc", "star_align", "sort_bam", "index_bam", "featurecounts",
+    "salmon_quant", "select_suppa_fields", "format_suppa_fields", "suppa_run",
+    "rmats_create_input", "rmats_run",
+    "majiq_create_ini", "majiq_build", "majiq_psi", "voila_modulize", "voila_tsv",
+    "spladder_run"
+  ],
+  "excluded": [],
+  "rule_count": 17,
+  "tools": ["fastp", "star", "samtools", "subread", "salmon", "suppa", "rmats", "majiq", "voila", "spladder", "perl"],
+  "description": "Paired-end RNA-seq from FASTQ to per-sample alternative-splicing calls: reads are trimmed with fastp, aligned with two-pass STAR and counted per gene with featureCounts; each sample's splicing is then quantified independently with four callers — rMATS, MAJIQ (with Voila export), SUPPA2 (via Salmon transcript quantification) and SplAdder. The alignment and AS-calling stages are one chained DAG (run one stage with -t alignment / -t as_calling).",
+  "installation": {
+    "engine": "oxo-flow >= 0.11.0",
+    "toolchain": "conda envs — pinned versions (fastp 0.23.4, STAR 2.7.7a, samtools 1.13/1.15, subread 2.0.1, salmon 1.10.3, suppa 2.3, rMATS 4.3.0, MAJIQ 2.5, SplAdder 3.1.1; conda-forge + bioconda)",
+    "requirements": [
+      "reference data (GRCh38 + GENCODE v34): STAR index (STAR 2.7.7a), annotation GTF + GFF3, Salmon transcript index, SUPPA2 events file, MAJIQ academic license",
+      "paired-end reads at reads_dir/<sample>_1.fastq.gz / <sample>_2.fastq.gz for each sample in the [[sample_groups]] list",
+      "compute: up to 10 threads per rule (STAR/rMATS), no memory limits set",
+      "conda or mamba at runtime to create the pinned envs/*.yaml environments"
+    ]
+  },
+  "repo_url": "https://github.com/oxo-flow-community/oxo-flow-tcasia",
+  "license": "Apache-2.0",
+  "upstream_license": "MIT"
+}

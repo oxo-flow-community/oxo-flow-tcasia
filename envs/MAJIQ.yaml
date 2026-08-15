@@ -1,0 +1,10 @@
+name: tcasia-majiq
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.10
+  - htslib=1.19
+  - pip
+  - pip:
+      - majiq==2.5

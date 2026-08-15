@@ -1,0 +1,130 @@
+# workflows/01_alignment/Snakefile — RNA-seq quality control and alignment.
+# Rules keep upstream names and command logic verbatim.
+
+[workflow]
+name = "tcasia-alignment"
+version = "1.0.0"
+description = "fastp QC -> STAR two-pass alignment -> samtools sort/index -> featureCounts (TCASIA stage 1)."
+author = "oxo-flow-community"
+
+[[rules]]
+name = "fastp_qc"
+description = "Trim and quality-filter paired reads with fastp"
+input = [
+    "{config.reads_dir}/{sample}_1.fastq.gz",
+    "{config.reads_dir}/{sample}_2.fastq.gz",
+]
+output = [
+    "{config.align_out_dir}/clean_fastq/{sample}_1.clean.fastq.gz",
+    "{config.align_out_dir}/clean_fastq/{sample}_2.clean.fastq.gz",
+    "{config.align_out_dir}/qc/{sample}_fastp.html",
+    "{config.align_out_dir}/qc/{sample}_fastp.json",
+]
+log = "{config.align_out_dir}/logs/fastp/{sample}.log"
+shell = """
+mkdir -p "$(dirname {output[0]})" "$(dirname {output[2]})" "$(dirname {config.align_out_dir}/logs/fastp/{sample}.log)"
+fastp \
+    -i {input[0]} -I {input[1]} \
+    -o {output[0]} -O {output[1]} \
+    --html {output[2]} --json {output[3]} \
+    --length_required {config.fastp_min_length} \
+    --qualified_quality_phred {config.fastp_qualified_quality_phred} \
+    --unqualified_percent_limit {config.fastp_unqualified_percent_limit} \
+    --n_base_limit {config.fastp_n_base_limit} \
+    --thread {threads} --detect_adapter_for_pe \
+    > {config.align_out_dir}/logs/fastp/{sample}.log 2>&1
+"""
+
+[rules.resources]
+threads = 8
+
+[rules.environment]
+conda = "envs/fastp.yaml"
+
+[[rules]]
+name = "star_align"
+description = "Two-pass STAR alignment with gene counts"
+input = [
+    "{config.align_out_dir}/clean_fastq/{sample}_1.clean.fastq.gz",
+    "{config.align_out_dir}/clean_fastq/{sample}_2.clean.fastq.gz",
+]
+output = ["{config.aligned_dir}/{sample}/{sample}_Aligned.out.bam"]
+log = "{config.align_out_dir}/logs/star/{sample}.log"
+shell = """
+mkdir -p "$(dirname {output[0]})" "$(dirname {config.align_out_dir}/logs/star/{sample}.log)"
+STAR --runThreadN {threads} \
+     --genomeDir {config.star_index_dir} \
+     --readFilesIn {input[0]} {input[1]} \
+     --outFileNamePrefix {config.aligned_dir}/{sample}/{sample}_ \
+     --outSAMunmapped Within \
+     --readFilesCommand zcat \
+     --outFilterMismatchNmax {config.star_out_filter_mismatch_nmax} \
+     --outSAMattributes All \
+     --outStd Log \
+     --limitBAMsortRAM {config.star_limit_bam_sort_ram} \
+     --outSAMtype BAM Unsorted \
+     --outFilterIntronMotifs RemoveNoncanonical \
+     --outSAMstrandField intronMotif \
+     --twopassMode Basic \
+     --quantMode GeneCounts \
+     > {config.align_out_dir}/logs/star/{sample}.log 2>&1
+"""
+
+[rules.resources]
+threads = 10
+
+[rules.environment]
+conda = "envs/ega.yaml"
+
+[[rules]]
+name = "sort_bam"
+description = "Coordinate-sort the STAR alignment with samtools"
+input = ["{config.aligned_dir}/{sample}/{sample}_Aligned.out.bam"]
+output = ["{config.aligned_dir}/{sample}/{sample}_Aligned.sortedByCoord.out.bam"]
+log = "{config.align_out_dir}/logs/samtools/{sample}.sort.log"
+shell = """
+mkdir -p "$(dirname {config.align_out_dir}/logs/samtools/{sample}.sort.log)"
+samtools sort -@ {threads} -o {output[0]} {input[0]} > {config.align_out_dir}/logs/samtools/{sample}.sort.log 2>&1
+"""
+
+[rules.resources]
+threads = 8
+
+[rules.environment]
+conda = "envs/samtools1.yaml"
+
+[[rules]]
+name = "index_bam"
+description = "Index the sorted BAM with samtools"
+input = ["{config.aligned_dir}/{sample}/{sample}_Aligned.sortedByCoord.out.bam"]
+output = ["{config.aligned_dir}/{sample}/{sample}_Aligned.sortedByCoord.out.bam.bai"]
+log = "{config.align_out_dir}/logs/samtools/{sample}.index.log"
+shell = """
+mkdir -p "$(dirname {config.align_out_dir}/logs/samtools/{sample}.index.log)"
+samtools index -@ {threads} {input[0]} {output[0]} > {config.align_out_dir}/logs/samtools/{sample}.index.log 2>&1
+"""
+
+[rules.resources]
+threads = 2
+
+[rules.environment]
+conda = "envs/samtools1.yaml"
+
+[[rules]]
+name = "featurecounts"
+description = "Count reads per gene with featureCounts"
+input = ["{config.aligned_dir}/{sample}/{sample}_Aligned.sortedByCoord.out.bam"]
+output = ["{config.aligned_dir}/{sample}/{sample}_featureCounts.txt"]
+log = "{config.align_out_dir}/logs/featurecounts/{sample}.log"
+shell = """
+mkdir -p "$(dirname {config.align_out_dir}/logs/featurecounts/{sample}.log)"
+featureCounts -T {threads} -p -t exon -g gene_id \
+    -a {config.ref} -o {output[0]} {input[0]} \
+    > {config.align_out_dir}/logs/featurecounts/{sample}.log 2>&1
+"""
+
+[rules.resources]
+threads = 8
+
+[rules.environment]
+conda = "envs/subread.yaml"
