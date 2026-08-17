@@ -84,7 +84,10 @@ output = ["{config.aligned_dir}/{sample}/{sample}_Aligned.sortedByCoord.out.bam"
 log = "{config.align_out_dir}/logs/samtools/{sample}.sort.log"
 shell = """
 mkdir -p "$(dirname {config.align_out_dir}/logs/samtools/{sample}.sort.log)"
-samtools sort -@ {threads} -o {output[0]} {input[0]} > {config.align_out_dir}/logs/samtools/{sample}.sort.log 2>&1
+# -@ effective_threads + capped per-thread buffer: sort's default 768MB
+# per thread over-allocated the box (live: 'couldn't allocate memory for
+# bam_mem' with -@ 8 = ~6GB on a 3.7GB machine)
+samtools sort -@ {effective_threads} -m 512M -o {output[0]} {input[0]} > {config.align_out_dir}/logs/samtools/{sample}.sort.log 2>&1
 """
 
 [rules.resources]
