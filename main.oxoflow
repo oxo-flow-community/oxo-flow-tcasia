@@ -107,7 +107,7 @@ conda = "envs/SUPPA2.yaml"
 name = "suppa2_events"
 source = "test/fixtures/reference/genes.gtf"
 output = "test/fixtures/reference/events.ioe"
-build = "suppa.py generateEvents -i {source} -o test/fixtures/reference/events -f ioe"
+build = "suppa.py generateEvents -i {source} -o test/fixtures/reference/events -f ioe -e SE SS MX RI FL"
 
 [references.environment]
 conda = "envs/SUPPA2.yaml"
