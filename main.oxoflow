@@ -86,8 +86,12 @@ spladder_event_types = "exon_skip,intron_retention,alt_3prime,alt_5prime,mutex_e
 [[references]]
 name = "star_index_dir"
 source = "test/fixtures/reference/genome.fa"
-output = "test/fixtures/reference/STAR_index"
-build = "STAR --runMode genomeGenerate --genomeDir {output} --genomeFastaFiles {source} --sjdbGTFfile test/fixtures/reference/genes.gtf --runThreadN 8"
+# Sentinel-file output: a half-built index directory must not satisfy
+# freshness (live: an interrupted genomeGenerate left STAR_index/
+# without genomeParameters.txt and the dir-exists check skipped the
+# rebuild, then STAR alignment died with exit 105).
+output = "test/fixtures/reference/STAR_index/genomeParameters.txt"
+build = "mkdir -p test/fixtures/reference/STAR_index && STAR --runMode genomeGenerate --genomeDir test/fixtures/reference/STAR_index --genomeFastaFiles {source} --sjdbGTFfile test/fixtures/reference/genes.gtf --runThreadN 8"
 threads = 8
 memory = "16G"
 
@@ -97,8 +101,9 @@ conda = "envs/ega.yaml"
 [[references]]
 name = "salmon_index"
 source = "test/fixtures/reference/transcripts.fa"
-output = "test/fixtures/reference/salmon_index"
-build = "salmon index -t {source} -i {output}"
+# Sentinel-file output (same half-built-index reasoning as star_index_dir).
+output = "test/fixtures/reference/salmon_index/complete_ref_lens.bin"
+build = "salmon index -t {source} -i test/fixtures/reference/salmon_index"
 
 [references.environment]
 conda = "envs/SUPPA2.yaml"
