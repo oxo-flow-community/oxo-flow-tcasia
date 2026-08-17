@@ -50,7 +50,7 @@ fastp_n_base_limit = 5
 
 # STAR (upstream star.*)
 star_out_filter_mismatch_nmax = 15
-star_limit_bam_sort_ram = 39050942993
+star_limit_bam_sort_ram = 0     # 0 = auto: the machine-effective memory (clamped declared value)
 
 # --- 02_as_calling (upstream config.yml) ---
 as_out_dir = "results/as_calling"                  # upstream: output_dir
