@@ -4,4 +4,12 @@ channels:
   - bioconda
 dependencies:
   - python=3.10
-  - spladder=3.1.1
+  - pip
+  - make
+  - gxx_linux-64
+  - pip:
+    # spladder=3.1.1 no longer exists on bioconda (upstream TCASIA pins it
+    # as a conda dependency; the package was removed from the channel),
+    # and PyPI's 'spladder' is an unrelated 1.2.0 project — install from
+    # the official source tag instead.
+    - git+https://github.com/ratschlab/spladder@v3.1.1
