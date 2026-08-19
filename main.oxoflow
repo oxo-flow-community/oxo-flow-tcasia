@@ -117,7 +117,7 @@ output = "test/fixtures/reference/events.ioe"
 # the input GTF are skipped entirely (live: the tiny fixture has no
 # SS/FL events and the hardcoded cat died). Concatenate whichever of
 # the five types exist.
-build = "suppa.py generateEvents -i {source} -o test/fixtures/reference/events -f ioe -e SE SS MX RI FL && for e in SE SS MX RI FL; do cat test/fixtures/reference/events_${e}_strict.ioe 2>/dev/null; done > test/fixtures/reference/events.ioe"
+build = "suppa.py generateEvents -i {source} -o test/fixtures/reference/events -f ioe -e SE SS MX RI FL && for e in SE SS MX RI FL; do cat test/fixtures/reference/events_${e}_strict.ioe 2>/dev/null || true; done > test/fixtures/reference/events.ioe"
 
 [references.environment]
 conda = "envs/SUPPA2.yaml"
