@@ -5,6 +5,9 @@ channels:
 dependencies:
   - python=3.10
   - htslib=1.19
+  # rna_majiq's Cython extensions use the deprecated numpy C API —
+  # numpy 2.x breaks the ABI at import time (dtype size 88 vs 96)
+  - numpy=1.26
   - pip
   - pip:
       # majiq is not on PyPI — upstream's own `majiq==2.5` line cannot
