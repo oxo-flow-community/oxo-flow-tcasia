@@ -51,10 +51,13 @@ description = "Strip the |transcript_id| prefix from SUPPA2 TPM rows"
 input = ["{config.as_out_dir}/work/suppa2/{sample}/iso_tpm.txt"]
 output = ["{config.as_out_dir}/work/suppa2/{sample}/iso_tpm_formatted.txt"]
 log = "{config.as_out_dir}/logs/suppa2/{sample}.format_fields.log"
-shell = """perl -alne '{ next if $.==1; s/^\\|.*?\\|\\t//; s/\\|//g; print }' {input[0]} > {output[0]} 2> {config.as_out_dir}/logs/suppa2/{sample}.format_fields.log"""
-# note: $.==1 drops the sample-name header line SUPPA cannot parse
-# (live: psiPerEvent died after 'Buffering transcript expression
-# levels' on the bare header row)
+shell = """perl -alne '{ s/^\\|.*?\\|\\t//; s/\\|//g; print }' {input[0]} > {output[0]} 2> {config.as_out_dir}/logs/suppa2/{sample}.format_fields.log"""
+# note: the sample-name header line (multipleFieldSelection writes it as
+# the column id) MUST be kept — SUPPA's ExpressionReader consumes line 1
+# as the header and derives min_fields/colIds from it. Stripping it made
+# the first data row the header (2 fields -> min_fields=3), so every
+# real expression row was rejected ("Unexpeced number of fields") and
+# psiPerEvent died with "No expression values have been buffered".
 
 [rules.environment]
 conda = "envs/SUPPA2.yaml"

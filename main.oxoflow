@@ -116,8 +116,10 @@ output = "test/fixtures/reference/events.ioe"
 # not a combined events.ioe — and event types with zero events in
 # the input GTF are skipped entirely (live: the tiny fixture has no
 # SS/FL events and the hardcoded cat died). Concatenate whichever of
-# the five types exist.
-build = "suppa.py generateEvents -i {source} -o test/fixtures/reference/events -f ioe -e SE SS MX RI FL && for e in SE SS MX RI FL; do cat test/fixtures/reference/events_${e}_strict.ioe 2>/dev/null || true; done > test/fixtures/reference/events.ioe"
+# the five types exist, keeping only the first file's header (SUPPA's
+# IoeReader skips line 1 and would otherwise parse embedded headers as
+# events, logging a skip error per header).
+build = "suppa.py generateEvents -i {source} -o test/fixtures/reference/events -f ioe -e SE SS MX RI FL && awk \"FNR==1 && NR!=1 {next} 1\" test/fixtures/reference/events_*_strict.ioe > test/fixtures/reference/events.ioe"
 
 [references.environment]
 conda = "envs/SUPPA2.yaml"
