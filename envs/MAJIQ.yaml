@@ -8,8 +8,9 @@ dependencies:
   # rna_majiq's Cython extensions use the deprecated numpy C API —
   # numpy 2.x breaks the ABI at import time (dtype size 88 vs 96)
   - numpy=1.26
-  # voila's gunicorn imports pkg_resources at startup
-  - setuptools
+  # voila's gunicorn imports pkg_resources at startup — setuptools 81+
+  # removed the pkg_resources module (last version with it: 75.x)
+  - setuptools=75.8.2
   - pip
   - pip:
       # majiq is not on PyPI — upstream's own `majiq==2.5` line cannot
