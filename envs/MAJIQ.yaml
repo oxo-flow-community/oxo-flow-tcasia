@@ -7,4 +7,7 @@ dependencies:
   - htslib=1.19
   - pip
   - pip:
-      - majiq==2.5
+      # majiq is not on PyPI — upstream's own `majiq==2.5` line cannot
+      # install. OncoHarmony-Network's majiq_academic fork (same org as
+      # TCASIA) carries the academic build at the v2.5 tag.
+      - git+https://github.com/OncoHarmony-Network/majiq_academic@v2.5

@@ -53,7 +53,9 @@ git clone https://github.com/oxo-flow-community/oxo-flow-tcasia.git
 - **Tools**: conda envs with pinned versions (fastp 0.23.4, STAR 2.7.7a,
   samtools 1.13/1.15, subread 2.0.1, salmon 1.10.3, suppa 2.3, rMATS 4.3.0,
   MAJIQ 2.5, SplAdder 3.1.1; conda-forge + bioconda) — the 8 upstream
-  `envs/*.yaml` files, verbatim; conda or mamba at runtime
+  `envs/*.yaml` files, except `MAJIQ.yaml`'s pip line (see below:
+  `majiq==2.5` is not on PyPI, installed from OncoHarmony-Network's
+  `majiq_academic` fork at tag `v2.5` instead); conda or mamba at runtime
 
 ## Usage
 
