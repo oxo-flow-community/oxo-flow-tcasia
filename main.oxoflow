@@ -113,9 +113,11 @@ name = "suppa2_events"
 source = "test/fixtures/reference/genes.gtf"
 output = "test/fixtures/reference/events.ioe"
 # SUPPA writes ONE file per event type (events_SE_strict.ioe, ...),
-# not a combined events.ioe — concatenate the five the pipeline
-# consumes (live: psiPerEvent died on the missing events.ioe)
-build = "suppa.py generateEvents -i {source} -o test/fixtures/reference/events -f ioe -e SE SS MX RI FL && cat test/fixtures/reference/events_SE_strict.ioe test/fixtures/reference/events_SS_strict.ioe test/fixtures/reference/events_MX_strict.ioe test/fixtures/reference/events_RI_strict.ioe test/fixtures/reference/events_FL_strict.ioe > test/fixtures/reference/events.ioe"
+# not a combined events.ioe — and event types with zero events in
+# the input GTF are skipped entirely (live: the tiny fixture has no
+# SS/FL events and the hardcoded cat died). Concatenate whichever of
+# the five types exist.
+build = "suppa.py generateEvents -i {source} -o test/fixtures/reference/events -f ioe -e SE SS MX RI FL && for e in SE SS MX RI FL; do cat test/fixtures/reference/events_${e}_strict.ioe 2>/dev/null; done > test/fixtures/reference/events.ioe"
 
 [references.environment]
 conda = "envs/SUPPA2.yaml"
