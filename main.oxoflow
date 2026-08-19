@@ -22,6 +22,8 @@
 #     the alignment -> AS-calling chain is structural
 #   - strandness-derived values (salmon library type, MAJIQ strandness)
 #     are explicit config keys — upstream computes them in tcasia_config.py
+#   - the MAJIQ chain is gated on run_majiq (upstream fails without the
+#     academic license file; commands unchanged when enabled)
 
 [workflow]
 name = "tcasia"
@@ -56,9 +58,12 @@ star_limit_bam_sort_ram = 0     # 0 = auto: the machine-effective memory (clampe
 as_out_dir = "results/as_calling"                  # upstream: output_dir
 gff = "test/fixtures/reference/genes.gff3"    # upstream: GFF (tiny synthetic)
 # MAJIQ requires the upstream academic license file — place it at
-# test/fixtures/reference/majiq_license.lic (obtain from MAJIQ) or the
-# MAJIQ stage fails. Unlicensed real runs need the same file.
+# test/fixtures/reference/majiq_license.lic (obtain from MAJIQ) and set
+# run_majiq = true. Upstream fails hard without the license; the port
+# gates the whole MAJIQ chain on this flag instead (documented in the
+# README fidelity table).
 majiq_license = "test/fixtures/reference/majiq_license.lic"
+run_majiq = false
 # suppa2_events is auto-built below from the shipped GTF (SUPPA2 generateEvents)
 suppa2_events = "test/fixtures/reference/events.ioe"
 # salmon_index is auto-built below from the shipped transcripts.fa

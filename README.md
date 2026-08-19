@@ -47,7 +47,8 @@ git clone https://github.com/oxo-flow-community/oxo-flow-tcasia.git
   - annotation GFF3 — `gff` (MAJIQ)
   - Salmon transcript index — `salmon_index`
   - SUPPA2 events file — `suppa2_events`
-  - MAJIQ academic license file — `majiq_license` (required, as upstream)
+  - MAJIQ academic license file — `majiq_license` + `run_majiq = true`
+    (the MAJIQ chain is gated on the license flag; see Deviations)
 - **Compute**: up to 10 threads per rule (STAR/rMATS), no memory limits set
 - **Tools**: conda envs with pinned versions (fastp 0.23.4, STAR 2.7.7a,
   samtools 1.13/1.15, subread 2.0.1, salmon 1.10.3, suppa 2.3, rMATS 4.3.0,
@@ -121,6 +122,12 @@ Deviations from upstream defaults, all recorded here:
   config/inputs natively (`validate`, `dry-run`).
 - **Threads only, no memory**: upstream declares threads per tool and no
   memory; the port mirrors that exactly.
+- **MAJIQ is license-gated**: upstream runs the MAJIQ chain unconditionally
+  and fails without the academic license file. The port gates all five MAJIQ
+  rules (`majiq_create_ini`, `majiq_build`, `majiq_psi`, `voila_modulize`,
+  `voila_tsv`) on `run_majiq` — default `false`, so a fresh clone runs the
+  rMATS/SUPPA2/SplAdder callers end-to-end; set `run_majiq = true` after
+  placing the license at `majiq_license` (commands unchanged when enabled).
 
 ## Source
 

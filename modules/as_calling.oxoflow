@@ -127,6 +127,7 @@ conda = "envs/rmats.yaml"
 [[rules]]
 name = "majiq_create_ini"
 description = "Write the MAJIQ build configuration file"
+when = "config.run_majiq"
 input = ["{config.aligned_dir}/{sample}/{sample}_Aligned.sortedByCoord.out.bam"]
 output = ["{config.as_out_dir}/work/majiq/{sample}/build.ini"]
 log = "{config.as_out_dir}/logs/majiq/{sample}.config.log"
@@ -144,6 +145,7 @@ conda = "envs/MAJIQ.yaml"
 [[rules]]
 name = "majiq_build"
 description = "Build the MAJIQ splice graph"
+when = "config.run_majiq"
 input = ["{config.as_out_dir}/work/majiq/{sample}/build.ini"]
 output = [
     "{config.as_out_dir}/{sample}/majiq/{sample}_Aligned.sortedByCoord.out.majiq",
@@ -167,6 +169,7 @@ conda = "envs/MAJIQ.yaml"
 [[rules]]
 name = "majiq_psi"
 description = "Quantify MAJIQ PSI per local splicing variation"
+when = "config.run_majiq"
 input = ["{config.as_out_dir}/{sample}/majiq/{sample}_Aligned.sortedByCoord.out.majiq"]
 output = [
     "{config.as_out_dir}/{sample}/majiq/{sample}.psi.tsv",
@@ -187,6 +190,7 @@ conda = "envs/MAJIQ.yaml"
 [[rules]]
 name = "voila_modulize"
 description = "Convert the MAJIQ splice graph to Voila modules"
+when = "config.run_majiq"
 input = [
     "{config.as_out_dir}/{sample}/majiq/splicegraph.sql",
     "{config.as_out_dir}/{sample}/majiq/{sample}.psi.voila",
@@ -207,6 +211,7 @@ conda = "envs/MAJIQ.yaml"
 [[rules]]
 name = "voila_tsv"
 description = "Export MAJIQ results as a TSV table"
+when = "config.run_majiq"
 input = [
     "{config.as_out_dir}/{sample}/majiq/splicegraph.sql",
     "{config.as_out_dir}/{sample}/majiq/{sample}.psi.voila",
