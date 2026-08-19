@@ -51,7 +51,10 @@ description = "Strip the |transcript_id| prefix from SUPPA2 TPM rows"
 input = ["{config.as_out_dir}/work/suppa2/{sample}/iso_tpm.txt"]
 output = ["{config.as_out_dir}/work/suppa2/{sample}/iso_tpm_formatted.txt"]
 log = "{config.as_out_dir}/logs/suppa2/{sample}.format_fields.log"
-shell = """perl -alne '{ s/^\\|.*?\\|\\t//; s/\\|//g; print }' {input[0]} > {output[0]} 2> {config.as_out_dir}/logs/suppa2/{sample}.format_fields.log"""
+shell = """perl -alne '{ next if $.==1; s/^\\|.*?\\|\\t//; s/\\|//g; print }' {input[0]} > {output[0]} 2> {config.as_out_dir}/logs/suppa2/{sample}.format_fields.log"""
+# note: $.==1 drops the sample-name header line SUPPA cannot parse
+# (live: psiPerEvent died after 'Buffering transcript expression
+# levels' on the bare header row)
 
 [rules.environment]
 conda = "envs/SUPPA2.yaml"
