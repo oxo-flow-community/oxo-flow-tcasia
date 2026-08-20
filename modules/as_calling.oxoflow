@@ -51,7 +51,13 @@ description = "Strip the |transcript_id| prefix from SUPPA2 TPM rows"
 input = ["{config.as_out_dir}/work/suppa2/{sample}/iso_tpm.txt"]
 output = ["{config.as_out_dir}/work/suppa2/{sample}/iso_tpm_formatted.txt"]
 log = "{config.as_out_dir}/logs/suppa2/{sample}.format_fields.log"
-shell = """perl -alne '{(/\\|.*\\|\\t/; s/$1//g; s/\\|//g; print)}' {input[0]} > {output[0]} 2> {config.as_out_dir}/logs/suppa2/{sample}.format_fields.log"""
+shell = """perl -alne '{ s/^\\|.*?\\|\\t//; s/\\|//g; print }' {input[0]} > {output[0]} 2> {config.as_out_dir}/logs/suppa2/{sample}.format_fields.log"""
+# note: the sample-name header line (multipleFieldSelection writes it as
+# the column id) MUST be kept — SUPPA's ExpressionReader consumes line 1
+# as the header and derives min_fields/colIds from it. Stripping it made
+# the first data row the header (2 fields -> min_fields=3), so every
+# real expression row was rejected ("Unexpeced number of fields") and
+# psiPerEvent died with "No expression values have been buffered".
 
 [rules.environment]
 conda = "envs/SUPPA2.yaml"
@@ -121,6 +127,7 @@ conda = "envs/rmats.yaml"
 [[rules]]
 name = "majiq_create_ini"
 description = "Write the MAJIQ build configuration file"
+when = "config.run_majiq"
 input = ["{config.aligned_dir}/{sample}/{sample}_Aligned.sortedByCoord.out.bam"]
 output = ["{config.as_out_dir}/work/majiq/{sample}/build.ini"]
 log = "{config.as_out_dir}/logs/majiq/{sample}.config.log"
@@ -138,6 +145,7 @@ conda = "envs/MAJIQ.yaml"
 [[rules]]
 name = "majiq_build"
 description = "Build the MAJIQ splice graph"
+when = "config.run_majiq"
 input = ["{config.as_out_dir}/work/majiq/{sample}/build.ini"]
 output = [
     "{config.as_out_dir}/{sample}/majiq/{sample}_Aligned.sortedByCoord.out.majiq",
@@ -161,6 +169,7 @@ conda = "envs/MAJIQ.yaml"
 [[rules]]
 name = "majiq_psi"
 description = "Quantify MAJIQ PSI per local splicing variation"
+when = "config.run_majiq"
 input = ["{config.as_out_dir}/{sample}/majiq/{sample}_Aligned.sortedByCoord.out.majiq"]
 output = [
     "{config.as_out_dir}/{sample}/majiq/{sample}.psi.tsv",
@@ -181,6 +190,7 @@ conda = "envs/MAJIQ.yaml"
 [[rules]]
 name = "voila_modulize"
 description = "Convert the MAJIQ splice graph to Voila modules"
+when = "config.run_majiq"
 input = [
     "{config.as_out_dir}/{sample}/majiq/splicegraph.sql",
     "{config.as_out_dir}/{sample}/majiq/{sample}.psi.voila",
@@ -201,6 +211,7 @@ conda = "envs/MAJIQ.yaml"
 [[rules]]
 name = "voila_tsv"
 description = "Export MAJIQ results as a TSV table"
+when = "config.run_majiq"
 input = [
     "{config.as_out_dir}/{sample}/majiq/splicegraph.sql",
     "{config.as_out_dir}/{sample}/majiq/{sample}.psi.voila",

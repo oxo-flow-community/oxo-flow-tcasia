@@ -52,6 +52,7 @@ output = ["{config.aligned_dir}/{sample}/{sample}_Aligned.out.bam"]
 log = "{config.align_out_dir}/logs/star/{sample}.log"
 shell = """
 mkdir -p "$(dirname {output[0]})" "$(dirname {config.align_out_dir}/logs/star/{sample}.log)"
+LIMIT={config.star_limit_bam_sort_ram}; [ "$LIMIT" -gt 0 ] 2>/dev/null || LIMIT=$(( {effective_memory_mb} * 1000000 ))
 STAR --runThreadN {threads} \
      --genomeDir {config.star_index_dir} \
      --readFilesIn {input[0]} {input[1]} \
@@ -61,7 +62,7 @@ STAR --runThreadN {threads} \
      --outFilterMismatchNmax {config.star_out_filter_mismatch_nmax} \
      --outSAMattributes All \
      --outStd Log \
-     --limitBAMsortRAM {config.star_limit_bam_sort_ram} \
+     --limitBAMsortRAM $LIMIT \
      --outSAMtype BAM Unsorted \
      --outFilterIntronMotifs RemoveNoncanonical \
      --outSAMstrandField intronMotif \
@@ -84,7 +85,10 @@ output = ["{config.aligned_dir}/{sample}/{sample}_Aligned.sortedByCoord.out.bam"
 log = "{config.align_out_dir}/logs/samtools/{sample}.sort.log"
 shell = """
 mkdir -p "$(dirname {config.align_out_dir}/logs/samtools/{sample}.sort.log)"
-samtools sort -@ {threads} -o {output[0]} {input[0]} > {config.align_out_dir}/logs/samtools/{sample}.sort.log 2>&1
+# -@ effective_threads + capped per-thread buffer: sort's default 768MB
+# per thread over-allocated the box (live: 'couldn't allocate memory for
+# bam_mem' with -@ 8 = ~6GB on a 3.7GB machine)
+samtools sort -@ {effective_threads} -m 512M -o {output[0]} {input[0]} > {config.align_out_dir}/logs/samtools/{sample}.sort.log 2>&1
 """
 
 [rules.resources]
