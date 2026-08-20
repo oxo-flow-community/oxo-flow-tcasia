@@ -2,7 +2,7 @@
   "name": "oxo-flow-tcasia",
   "title": "Paired-end RNA-seq alignment and four-caller alternative-splicing analysis",
   "origin": "port",
-  "rating": "verified",
+  "rating": "live-verified",
   "engine": "snakemake",
   "source": {
     "repo": "OncoHarmony-Network/TCASIA_pipeline",
