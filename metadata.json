@@ -26,7 +26,7 @@
   "tools": ["fastp", "star", "samtools", "subread", "salmon", "suppa", "rmats", "majiq", "voila", "spladder", "perl"],
   "description": "Paired-end RNA-seq from FASTQ to per-sample alternative-splicing calls: reads are trimmed with fastp, aligned with two-pass STAR and counted per gene with featureCounts; each sample's splicing is then quantified independently with four callers — rMATS, MAJIQ (with Voila export), SUPPA2 (via Salmon transcript quantification) and SplAdder. The alignment and AS-calling stages are one chained DAG (run one stage with -t alignment / -t as_calling).",
   "installation": {
-    "engine": "oxo-flow >= 0.12.0",
+    "engine": "oxo-flow >= 0.14.0",
     "toolchain": "conda envs — pinned versions (fastp 0.23.4, STAR 2.7.7a, samtools 1.13/1.15, subread 2.0.1, salmon 1.10.3, suppa 2.3, rMATS 4.3.0, MAJIQ 2.5, SplAdder 3.1.1; conda-forge + bioconda)",
     "requirements": [
       "reference data (GRCh38 + GENCODE v34): STAR index (STAR 2.7.7a), annotation GTF + GFF3, Salmon transcript index, SUPPA2 events file, MAJIQ academic license",

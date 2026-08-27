@@ -21,7 +21,9 @@ namespaced `alignment::*` / `as_calling::*`).
 
 ### 1. Install oxo-flow
 
-Requires **oxo-flow ≥ 0.12.0**. Release binary (recommended):
+Requires **oxo-flow ≥ 0.14.0** (`{effective_threads}` / `{effective_memory_mb}`
+placeholders and `[references.environment]` are used by `main.oxoflow`).
+Release binary (recommended):
 
 ```bash
 curl -fL -o oxo-flow.tar.gz \
@@ -84,13 +86,13 @@ Primary outputs:
 | Upstream rule | oxo-flow rule | Tool (version) | Notes |
 |---|---|---|---|
 | fastp_qc | `alignment::fastp_qc` | fastp 0.23.4 | identical command; input layout from `[[sample_groups]]` + `reads_dir` instead of samples.tsv |
-| star_align | `alignment::star_align` | STAR 2.7.7a | identical command; `params.prefix` inlined |
-| sort_bam | `alignment::sort_bam` | samtools 1.15 | identical command |
+| star_align | `alignment::star_align` | STAR 2.7.7a | identical command; `params.prefix` inlined; `--limitBAMsortRAM` differs — upstream hardcodes 39050942993 (~36 G), the port defaults `star_limit_bam_sort_ram = 0` → machine-effective memory (see Deviations) |
+| sort_bam | `alignment::sort_bam` | samtools 1.15 | same sort; `-@ {effective_threads}` + `-m 512M` cap added (upstream `-@ 8` with sort's default 768 MB/thread buffer over-allocated the live box — see Deviations) |
 | index_bam | `alignment::index_bam` | samtools 1.15 | identical command |
 | featurecounts | `alignment::featurecounts` | subread 2.0.1 | identical command; upstream runs without a strandness flag (oxo-flow preflight warns — upstream behavior kept) |
 | salmon_quant | `as_calling::salmon_quant` | salmon 1.10.3 | identical command; `-l` from explicit `salmon_library_type` (upstream derives it from `strandness` in tcasia_config.py) |
 | select_suppa_fields | `as_calling::select_suppa_fields` | suppa 2.3 | identical command |
-| format_suppa_fields | `as_calling::format_suppa_fields` | suppa 2.3 | identical perl one-liner |
+| format_suppa_fields | `as_calling::format_suppa_fields` | suppa 2.3 | equivalent perl one-liner (anchored rewrite of the upstream regex; same output — see Deviations) |
 | suppa_run | `as_calling::suppa_run` | suppa 2.3 | identical command; output prefix inlined |
 | rmats_create_input | `as_calling::rmats_create_input` | rMATS 4.3.0 | identical command |
 | rmats_run | `as_calling::rmats_run` | rMATS 4.3.0 | identical command; `--od` directory declared as the rule output |
@@ -124,6 +126,20 @@ Deviations from upstream defaults, all recorded here:
   config/inputs natively (`validate`, `dry-run`).
 - **Threads only, no memory**: upstream declares threads per tool and no
   memory; the port mirrors that exactly.
+- **STAR BAM-sort RAM is machine-sized by default**: upstream hardcodes
+  `--limitBAMsortRAM 39050942993` (~36 GB) in `star_align`. The port adds
+  the config key `star_limit_bam_sort_ram` (default `0` = auto) and sizes
+  the limit from the machine-effective memory (`{effective_memory_mb}`),
+  so STAR adapts to small boxes; set it to a byte count to pin an exact
+  value as upstream did.
+- **samtools sort buffer cap**: `sort_bam` runs
+  `samtools sort -@ {effective_threads} -m 512M` instead of upstream's
+  plain `-@ 8` — sort's default 768 MB/thread buffer over-allocated the
+  live box (`couldn't allocate memory for bam_mem`).
+- **SUPPA2 field formatting regex**: `format_suppa_fields` is the same
+  transformation as the upstream one-liner, written as an anchored regex
+  (`s/^\|.*?\|\t//` instead of upstream's capture-and-delete `s/$1//g`);
+  output is identical for the quant.sf-derived input shape.
 - **MAJIQ is license-gated**: upstream runs the MAJIQ chain unconditionally
   and fails without the academic license file. The port gates all five MAJIQ
   rules (`majiq_create_ini`, `majiq_build`, `majiq_psi`, `voila_modulize`,
